@@ -1,0 +1,13 @@
+set(SpatialOp_Files
+  SpatialOp/AMRMGLevelOp.cpp
+  SpatialOp/AMRMGLevelOp.h
+  SpatialOp/AMRMultigrid.cpp
+  SpatialOp/AMRMultigrid.h
+  SpatialOp/HelmoltzJacobiSmoother.cpp
+  SpatialOp/HelmoltzJacobiSmoother.h
+  SpatialOp/LinearSolver.cpp
+  SpatialOp/LinearSolver.h
+  SpatialOp/PLG.cpp
+  SpatialOp/PLG.h
+  PARENT_SCOPE
+)

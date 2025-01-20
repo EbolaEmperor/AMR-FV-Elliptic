@@ -1,0 +1,31 @@
+set(Core_Files
+    Core/Box.h
+    Core/Config.cpp
+    Core/Config.h
+    Core/configure.h
+    Core/Curve.cpp
+    Core/Curve.h
+    Core/Interval.h
+    Core/MPI.h
+    Core/MultivariatePolynomial.h
+    Core/numlib.cpp
+    Core/numlib.h
+    Core/Polynomial.h
+    Core/Profile.h
+    Core/Profile.cpp
+    Core/RowSparse.h
+    Core/RowSparse.cpp
+    Core/static_for.h
+    Core/Tensor.h
+    Core/TensorExpr.h
+    Core/TensorSlice.h
+    Core/type_traits.h
+    Core/Vec.h
+    Core/VecCompare.h
+    Core/Wrapper_LAPACKE.h
+    Core/Wrapper_OpenMP.cpp
+    Core/Wrapper_OpenMP.h
+    Core/BinaryPolynomial.h
+    Core/SimplicialComplex.cpp
+    PARENT_SCOPE
+)

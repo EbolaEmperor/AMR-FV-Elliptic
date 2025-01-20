@@ -1,0 +1,45 @@
+{
+  "description" : "Poisson-rect",
+  "grid" : {
+    "dimension"     : 2,
+    "domain"        : "unit square",
+    "boxSize0"      : [128, 128],
+    "numHier"       : 5,
+    "numCycles"     : 4,
+    "refRatio"      : [2, 2, 2, 2, 2],
+    "refThereshold" : [0.6, 0.75, 0.75, 0.75, 0.75],
+    "fillRatio"     : [0.5, 0.5, 0.5, 0.5, 0.5]
+  },
+  "solver" : {
+    "equationType"  : "Poisson",
+    "HelmholtzCoef" : [0.0, -1.0],
+    "centering"     : -1,
+    "rhsFunc"   : {
+      "description" : "InvSum"
+    },
+    "boundaryFunc" : {
+      "description" : "Constant",
+      "constant"   : 0
+    },
+    "boundaryCondition"   : ["DDDD"],
+    "multigrid" : {
+      "relaxation"     : [6, 6, 40],
+      "JacobiWeight"   : 0.5,
+      "maxIterations"  : 100,
+      "stallThr"       : 1.1,
+      "relRsd"         : 1e-12,
+      "numBottomLevel" : 5,
+      "useFMG"         : true,
+      "FMGInterpOd"    : 4
+    }
+  },
+  "output" : {
+      "enableOutput"   : true,
+      "fileName"       : "PoissonInvSumRect",
+      "middleOutput"   : false
+  },
+  "perf" : {
+    "timing"     : true,
+    "numThreads" : 2
+  }
+}

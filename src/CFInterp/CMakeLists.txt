@@ -1,0 +1,15 @@
+set(CFInterp_Files
+    CFInterp/CFInterpStencil.h
+    CFInterp/CFInterpStencilD2O1R2FT.cpp
+    CFInterp/CFInterpStencilD2O1R4FT.cpp
+    CFInterp/CFInterpStencilD2O2R2FT.cpp
+    CFInterp/CFInterpStencilD2O2R4FT.cpp
+    CFInterp/CFInterpStencilD2O4R2FT.cpp
+    CFInterp/CFInterpStencilD2O4R2TF.cpp
+    CFInterp/CFInterpStencilD2O4R2TT.cpp
+    CFInterp/CFInterpStencilD2O4R4FT.cpp
+    CFInterp/CFInterpStencilD2O4R4TF.cpp
+    CFInterp/CFInterpStencilD2O4R4TT.cpp
+    CFInterp/CFInterpStencilD2O5R2TF.cpp
+    PARENT_SCOPE
+)

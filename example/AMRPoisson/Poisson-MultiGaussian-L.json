@@ -1,0 +1,56 @@
+{
+  "description" : "Poisson-L",
+  "grid" : {
+    "dimension"     : 2,
+    "domain"        : "L-shape",
+    "boxSize0"      : [2048, 2048],
+    "numHier"       : 2,
+    "refRatio"      : [2],
+    "refThereshold" : [1e-4],
+    "fillRatio"     : [0.6]
+  },
+  "solver" : {
+    "equationType"  : "Poisson",
+    "HelmholtzCoef" : [0.0, -1.0],
+    "centering"     : -1,
+    "phi"      : {
+      "description" : "Gaussian",
+      "numCenter"   : 4,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.5, 0.5]],
+      "lambs"       : [2e3, 2e3, 2e3, 1e3]
+    },
+    "phiGrad"  : {
+      "description" : "Gaussian_Grad",
+      "numCenter"   : 4,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.5, 0.5]],
+      "lambs"       : [2e3, 2e3, 2e3, 1e3]
+    },
+    "phiLap"   : {
+      "description" : "Gaussian_Lap",
+      "numCenter"   : 4,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.5, 0.5]],
+      "lambs"       : [2e3, 2e3, 2e3, 1e3]
+    },
+    "testGradient" : false,
+    "boundaryCondition"   : ["DIDI", "DDID", "IDDD"],
+    "multigrid" : {
+      "relaxation"     : [6, 6, 20],
+      "JacobiWeight"   : 0.5,
+      "maxIterations"  : 100,
+      "stallThr"       : 1.1,
+      "relRsd"         : 1e-12,
+      "numBottomLevel" : 10,
+      "useFMG"         : true,
+      "FMGInterpOd"    : 1
+    }
+  },
+  "output" : {
+      "enableOutput"   : false,
+      "fileName"       : "PoissonMultiGaussianL",
+      "middleOutput"   : false
+  },
+  "perf" : {
+    "timing"     : true,
+    "numThreads" : 2
+  }
+}

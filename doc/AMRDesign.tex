@@ -1,0 +1,1593 @@
+\documentclass[cn, bibend=bibtex]{elegantpaper}
+
+\title{二维并行AMR程序设计文档}
+\author{Wenchong Huang}
+\date{\today}
+\setcounter{tocdepth}{3}
+\everymath{\displaystyle}
+\usepackage{esint}
+\theoremstyle{plain}
+\usepackage{miniplot}
+\newtheorem{exercise}{练习}[section]
+\newenvironment{solution}{\begin{proof}[\textbf{\emph 解}]}{\end{proof}}
+
+\usepackage{bm}
+
+\begin{document}
+\maketitle
+\vspace{-1em}
+\tableofcontents
+\newpage
+
+
+% \newpage
+\section{进程数据交换}
+\subsection{class LinearizationHelper}
+\begin{itemize}
+    \item 功能:提供将不同数据转化成连续内存的辅助函数。
+    \item 成员函数：
+    \begin{enumerate}
+        \item \lstinline|inline void linearIn(const T &input, std::vector<char> &buf)|
+        \item[] 模板:\lstinline|template<class T>|
+        \item[] public 成员函数, 将\lstinline|input|中数据复制到连续内存\lstinline{buf}中.
+        \item \lstinline|inline void linearIn(const std::vector<T> &input, std::vector<char> &buf)|
+        \item[] 模板:\lstinline|template <class T>|
+        \item[] public 成员函数, 将\lstinline|input|中的数据复制到连续内存\lstinline{buf}中.
+        \item \lstinline|inline void linearOut(const std::vector<char> &buf, unsigned &end_pos, T &res)|
+        \item[] 模板:\lstinline|template <class T>|
+        \item[] public 成员函数, 将\lstinline|buf|中的数据恢复到对应位置\lstinline|res|中.
+        \item \lstinline|inline void linearOut(const std::vector<char> &buf, unsigned &end_pos, std::vector<T> &res)|
+        \item[] 模板:\lstinline|template <class T>|
+        \item[] public 成员函数, 将\lstinline|buf|中的数据恢复到对应位置\lstinline|res|中.
+    \end{enumerate}
+\end{itemize}
+\subsection{class ParallelDataBase}
+\begin{itemize}
+    \item 功能:并行数据类型的基类.
+    \item 模板:\lstinline{template <bool EnableRepeatComm, bool KnowSendInfo, bool KnowRecvInfo>}
+    \item 成员变量:
+    \begin{enumerate}
+        \item \lstinline{Communicatior comm_;}
+        % \item \lstinline|bool lock_;|
+        \item \lstinline|map<unsigned, size_t> data_length_to_send_;|
+        \item[] 保存要发送信息的进程编号和信息长度.
+        \item \lstinline|map<unsigned, size_t> data_length_to_recv_;|
+        \item[] 保存要接受信息的进程编号和信息长度
+        \item\lstinline{map<unsigned, vector<char>> send_buf_;}
+        \item[]\lstinline{map<unsigned, vector<char>> recv_buf_;}
+        \item[]...
+      %   \item \lstinline|enum class InitOpt{kInitDir, kInitFromSend, kInitFromRecv, kStopInit};|
+      %   \item \begin{lstlisting}
+      % struct SyncOpt{
+      %   bool always_init_sync_pair_;
+      %   bool always_init_data_length_;
+      %   InitOpt init_sync_pair_opt_;
+      %   InitOpt init_data_length_opt_;
+      % };
+      % \end{lstlisting}
+      %   % \item \lstinline|map<unsigned, vector<char>> send_buf_;|
+      %   % \item 发送的连续内存
+      %   % \item \lstinline|map<unsigned, vector<char>> recv_buf_;|
+      %   % \item 接收的连续内存
+      %   \item \lstinline|Communicator comm_;|
+      %   \item[] 通讯器编号.
+      %   \item \lstinline|unsigned max_sending_capacity_|
+      %   \item[] 允许单次发送的最大长度.
+    \end{enumerate}
+    \item 成员函数:
+    \begin{enumerate}
+        \item \lstinline{ParallelDataBase(Communicator comm)}
+        \item \lstinline{virtual void communicationBegin() = 0;}
+        \item[] 开始通讯.
+        \item \lstinline{virtual void communicationEnd() = 0;}
+        \item[] 结束通讯.
+        % \item \lstinline{Copier(std::vector<unsigned> &exchange_info, bool& is_init_from_recv);}
+        % \item[] 从接收端或发送端同步进行信息传递的进程组
+        % \item \lstinline{Copier(std::vector<unsigned> &send_info, std::vector<unsigned> &recv_info);}
+        % \item[] 直接设置同步信息组.
+        % \item \lstinline{void resetInitOpt(const SyncOpt& sync_opt);}
+        % \item[] 重设信息同步设置.
+        % \item \lstinline{void setDataLength(const TF&handler, const T&data);}
+        % \item[] 模板: \lstinline{template <class TF, class T>}
+        % \item[] 初始化\lstinline{data_length_to_send_}和\lstinline{data_length_to_recv_}.
+        % \item \lstinline{void linearIn(const TF& handler, const T& data);}
+        % \item[] 模板: \lstinline{template <class TF, class T>}
+        % \item[] 通过\lstinline{handler}将要同步的数据打包到\lstinline{sendBuf_}中.
+        % \item\lstinline|void linearOut(const TF& handler, T& data)|
+        % \item[] 模板: \lstinline{template <class TF, class T>}
+        % \item[] 通过\lstinline{handler}将同步的数据放回\lstinline{data}中.
+        % \item\lstinline{void exchangeData()}
+        % \item 发送\lstinline{send_buf_}并接收\lstinline{recv_buf_};
+        % \item \lstinline|Copier(const map<unsigned, unsigned> &send_info, const map<unsigned, unsigned> &recv_info, const Communicator comm)|
+        % \item[] 同时有发送和接受信息的构造函数
+        % \item \lstinline|Copier(const map<unsigned, unsigned> &exchange_info, bool init_by_recv, const Communicator comm)|
+        % \item[] 发送和接收信息只知道其一的构造函数
+        % \item \lstinline|void syncExchangeInfo()|
+        % \item[] 同步得到未知的发送或接收信息.
+        % \item \lstinline|void exchangeData()|
+        % \item[] 进行数据交换,并将数据填入对应位置.
+        % \item \lstinline|virtual void rebuildData() = 0|
+        % \item[] protected 成员函数.
+        % \item[] 将接收的数据重构回对应位置.
+    \end{enumerate}
+\end{itemize}
+\section{网格分割与数据存储}
+
+
+\subsection{class BaseIterator}
+
+\begin{itemize}
+  \item 功能：迭代器基类。
+  \item 模板：\lstinline|template<typename T>|
+
+  T 表示迭代器作用的类名，T 必须有成员函数 \verb|.size()|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|T& object_|
+
+    protected 成员变量：当前迭代器正在遍历的对象
+  
+    \item \lstinline|unsigned current_|
+    
+    protected 成员变量：当前迭代器指向对象中的第几个内容
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|BaseIterator(T& obj): object_(obj), current_(0) {}|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|unsigned index() const|
+
+    public 成员函数，返回当前迭代器的索引
+
+    \item \lstinline|virtual bool ok() const {return current_ < object_.size();}|
+
+    public 成员函数，返回能否继续遍历
+
+    \item \lstinline|virtual BaseIterator<T>& operator++ ()|
+
+    public 成员函数，遍历下一个内容，默认实现是 \verb|++current_|，也可以由派生类定义
+  \end{enumerate}
+\end{itemize}
+
+\subsection{class DisjointBoxLayout}
+
+\begin{itemize}
+  \item 功能：存储一些不相交的 Box 布局。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|Vector<Box<Dim>> boxes_|
+    
+    protected 成员变量：用于存储 Box，按每个 Box 的左下角坐标排序。
+
+    \item \lstinline|Vector<int> procs_|
+
+    protected 成员变量：存储每个 Box 属于哪个进程
+  \end{enumerate}
+  \item 迭代器: \lstinline|class Iterator : public BaseIterator<const Vector<Box<Dim>>>|
+  \begin{enumerate}
+    \item \lstinline|const Box<Dim>& operator* () const|
+    
+    迭代器的 public 成员：返回当前迭代器指向的 Box
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|DisjointBoxLayout(const Vector<Box<Dim>>& boxes, const Vector<int>& procs_)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|unsigned size() const|
+
+    public 成员函数，返回 Box 的数量。
+
+    \item \lstinline|const Box<Dim>& getBox(unsigned i) const|
+
+    public 成员函数，返回第 i 个 Box.
+
+    \item \lstinline|int whichBox(const iVec &idx) const|
+
+    public 成员函数，寻找指标 \lstinline|idx| 在哪个 Box 中，找不到则返回 $-1$。
+
+    \item \lstinline|void checkDisjoint() const|
+
+    protected 成员函数，检查 Box 是否互不相交，由构造函数调用
+
+    \item \lstinline|DisjointBoxLayout<Dim> getRefined(int refRatio=2) const|
+
+    public 成员函数，返回当前 DisjointBoxLayout 的加细版本
+
+    \item \lstinline|DisjointBoxLayout<Dim> getCoarsened(int refRatio=2) const|
+
+    public 成员函数，返回当前 DisjointBoxLayout 的加粗版本
+
+    \item \lstinline|bool operator== (const DisjointBoxLayout<Dim>& rhs) const|
+
+    public 成员函数，判断两个 DisjointBoxLayout 是否相等
+
+    \item \lstinline|Iterator begin() const|
+
+    public 成员函数，获取指向第一个 Box 的迭代器。
+    \item \lstinline|unsigned getProcID(unsigned i) const|
+
+    public 成员函数，返回第 \lstinline|i| 个 \lstinline|Box|对应的进程号
+    \item \lstinline|unsigned getDataID(unsigned box_id) const|
+
+    public 成员函数，返回第 \lstinline|box_id| 个 Box 对应在进程中的位置。
+    \item \lstinline|unsigned numBoxes(unsigned proc_id) const|
+
+    public 成员函数，返回进程 \lstinline|proc_id| 对应的 Box 的数量。
+  \end{enumerate}
+\end{itemize}
+
+
+\subsection{class ProblemDomain}
+
+\begin{itemize}
+  \item 功能：存储由一系列不相交 Box 构成的物理区域。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|DisjointBoxLayout<Dim> layout_|
+
+    protected 成员变量：物理区域的布局。其中 Box 的加密程度和同层网格保持一致。
+  
+    \item \lstinline|Vec<Real,Dim> dx_|
+    
+    protected 成员变量：网格间距
+
+    \item \lstinline|Vec<Real,Dim> x0_|
+
+    protected 成员变量：网格左下角的坐标
+
+    \item \lstinline|int nGhost_|
+
+    protected 成员变量：ghost 区域宽度
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|ProblemDomain(const vector<Box<Dim>>& layout, rVec dx, int nGhost=2)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|const DisjointBoxLayout<Dim>& getLayout() const|
+
+    public 成员函数，返回表示物理区域的 DisjointBoxLayout。
+    
+    \item \lstinline|const Vec<Real,Dim> getDx() const|
+
+    public 成员函数，返回网格间距。
+
+    \item \lstinline|const Vec<Real,Dim> getX0() const|
+
+    public 成员函数，返回网格左下角坐标。
+
+    \item \lstinline|int getNumGhosts() const|
+
+    public 成员函数，返回 ghost 区域宽度。
+
+    \item \lstinline|ProblemDomain<Dim> getRefined(int refRatio=2) const|
+
+    public 成员函数，返回当前 ProblemDomain 加细版本
+
+    \item \lstinline|ProblemDomain<Dim> getCoarsened(int refRatio=2) const|
+
+    public 成员函数，返回当前 ProblemDomain 加粗版本
+  \end{enumerate}
+\end{itemize}
+
+\subsection{class LevelGhostBoxes}
+
+\begin{itemize}
+  \item 功能：存储 AMR 某层网格所有 Ghost Box 的信息。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const ProblemDomain<Dim>& domain_|
+
+    private，表示物理区域
+    \item \lstinline|const DisjointBoxLayout<Dim> &mesh_|
+
+    private，表示当前层级上的计算网格
+
+    \item \lstinline|int nGhost_|
+
+    private，表示 ghost 区域宽度
+    \item \lstinline|Vector<Box<Dim>> ghostedBoxes_|
+
+    private，表示当前层级上的所有 ghost box 区域
+    \item \lstinline|Vector<int> belongs_|
+
+    private，\verb|belongs[i]| 表示第 i 个 ghost box 属于哪个 box
+    \item \lstinline|Vector<std::optional<int>> location_|
+
+    private，\verb|location[i]| 表示第 i 个 ghost box 的实际位置在哪个 box 内，如果落在粗网格中或者落在物理区域外面，则为空
+
+    \item \lstinline|Vector<std::optional<int>> bdryOfWhichDomain_|
+
+    private，表示每个 ghost box 是第几个 domain 的物理边界，如果不是物理边界，则为空
+
+    \item \lstinline|Vector<std::optional<int>> bdryOfWhichFace_|
+
+    private，表示每个 ghost box 是物理边界的哪个面（左右下上），如果不是物理边界，则为空
+  \end{enumerate}
+  \item 迭代器：\lstinline|using DisjointBoxLayout<Dim>::Iterator|
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|LevelGhostBoxes(const ProblemDomain<Dim>& domain,|
+    
+          \lstinline|                   const DisjointBoxLayout<Dim>& mesh)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|unsigned size() const|
+
+    public 成员函数，返回存储的 ghost box 数量。
+
+    \item \lstinline|Iterator begin() const|
+
+    public 成员函数，返回指向第一个 ghost box 的迭代器。
+
+    \item \lstinline|int getBelongs(const Iterator& it) const|
+
+    \item \lstinline|std::optional<int> getLocation(const Iterator &it) const|
+
+    \item \lstinline|std::optional<int> getBdryOfWhichDomain(const Iterator &it) const|
+
+    \item \lstinline|std::optional<int> getBdryOfWhichFace(const Iterator &it) const|
+
+    \item \lstinline|void initLevelGhostBoxes()|
+
+    protected 成员函数，根据网格和定义域来初始化所有界面信息，由构造函数调用。
+  \end{enumerate}
+\end{itemize}
+
+
+\subsection{class AMRMeshRefine}
+
+\begin{itemize}
+  \item 功能：对 AMR 网格做局部加密操作。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const DisjointBoxLayout<Dim>& mesh_|
+
+    protected 成员变量：存储待加细或加粗的一层 AMR 网格。
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|AMRMeshRefine(const DisjointBoxLayout<Dim>& box_layout)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|DisjointBoxLayout<Dim> makeLayout(const LevelData<bool, Dim>& tags, int refRatio=2) const|
+
+    public 成员函数，根据用户传入的 tag，返回局部加密后的矩形区域，
+    下面的函数是实现该功能所需要的。
+
+    \item \lstinline|virtual void makeBoxesParallel(const LevelData<bool, Dim>& tags, std::vector<Box<Dim>>& refBoxes) const = 0|
+    
+    protected 成员函数，根据用户传入的 tag，得到 \textbf{当前进程中} 需要加密的矩形 refBoxes。要设计一种算法把零散的标记处理成整块的矩形们。具体算法由派生类实现。
+
+    \item \lstinline|void sendBoxesParallel(const std::vector<Box<Dim>>& refBoxes) const|
+
+    protected 成员函数，将当前进程的加密 Box 发送给其它进程，在 getRefineBoxesThisProc 之后调用。
+
+    \item \lstinline|void receiveBoxesParallel(std::vector<Box<Dim>>& refBoxes, std::vector<int>& procs) const|
+
+    protected 成员函数，接受其它进程的加密 Box，用 procs 数组记录接受的 Box 来自哪个进程，在 sendBoxesParallel 之后调用。
+
+    % \item \lstinline|DisjointBoxLayout<Dim> localCoarsen(const LevelData<bool, Dim, 1>& tags, const unsigned& refRatio=2)|
+
+    % public 成员函数，根据用户传入的 tag，返回局部加粗后的的矩形区域
+    % \begin{note}
+    %     由于进度紧张，localCoarsen 函数暂时不实现，之后做时间积分时再来实现。
+    % \end{note}
+  \end{enumerate}
+\end{itemize}
+
+\subsection{class BRMeshRefine : public AMRMeshRefine}
+
+\begin{itemize}
+  \item 功能：实现 BR 局部加密算法。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：如果实现算法需要，可以加
+  \item 成员函数：
+  \begin{enumerate}
+
+    \item \lstinline |void makeBoxesParallel(const LevelData<bool, Dim>& tags, std::vector<Box<Dim>>& refBoxes, int refRatio) const|
+    
+    protected 成员函数，根据用户传入的 tag，得到当前进程中需要加密的矩形区域 refBoxes。采用 BR 算法把零散的标记处理成整块的加密区域。
+  \end{enumerate}
+\end{itemize}
+
+% \subsection{class LoadBalancer}
+
+% \begin{itemize}
+%   \item 功能：负载均衡器。
+%   \item 模板：\lstinline|template<int Dim>|
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|const AMRMeshHierarchy<Dim> &oldHandler_|
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|LoadBalancer(const AMRMeshHierarchy<Dim> &handler)|
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|AMRMeshHierarchy<Dim> getBalanced() const|
+
+%     public 成员函数，返回负载均衡后的网格。
+%   \end{enumerate}
+% \end{itemize}
+
+
+% \newpage
+% \section{定义域表示}
+
+\subsection{class LevelData}
+
+\begin{itemize}
+  \item 功能：用于存储 AMR 某一层网格中一个进程上所需的数据，必须建立于 \lstinline|DisjointBoxLayout|。同时负责进程间数据传输。
+  \item 模板：\lstinline|template<typename T, int Dim>|
+
+    \lstinline|T| 表示基本数据类型，\lstinline|Dim| 表示空间的维度
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const DisjointBoxLayout<Dim> mesh_|
+
+    private 成员变量，表示当前 LevelData 对象所属的 \lstinline|DisjointBoxLayout|。
+
+    \item \lstinline|Vector<int> index_|
+
+    private 成员变量，表示存储数据的 Box 对应 \lstinline|layout_| 中 Box 的下标。
+    
+    \item \lstinline|unsigned nComps_|
+
+    private 成员变量，表示当前 LevelData 对象具有几个分量
+    
+    \item \lstinline|Vector<int> centering_|
+
+    private 成员变量，表示每一个分量的 centering 类型
+
+    \item \lstinline|int nGhost_|
+
+    private 成员变量，表示每个 Box 周围的 Ghost 层数
+
+    \item \lstinline|Vector<Vector<Tensor<T,Dim>>> data_|
+
+    private 成员变量，表示存储的数据。
+    第一维下标是 Box，第二维下标是 component。
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|LevelData(const DisjointBoxLayout<Dim>& mesh, |
+
+          \lstinline|            const Vector<int>& centering,|
+
+          \lstinline|            unsigned nComps = 1)|
+         
+          \lstinline|            unsigned nGhost = 0)|
+  \end{enumerate}
+  \item 迭代器：\lstinline|class Iterator : public BaseIterator<LevelData<T,Dim>>|
+
+  或 const 限定版本： \lstinline|class ConstIterator|
+  \begin{enumerate}
+    \item \lstinline|unsigned box_id|
+
+    迭代器的 private 成员变量，表示当前迭代器所指向的块状数据对应的 Box 编号
+    \item \lstinline|BaseIterator<LevelData<T,Dim>>& operator++ ()|
+
+    迭代器的 public 成员函数，让当前迭代器指向下一个由当前进程负责的块状数据
+    \item \lstinline|Vector<Tensor<T,Dim>>& getData()|
+
+    迭代器的 public 成员函数，返回当前迭代器指向的块状数据
+    \item \lstinline|Box<Dim> getValidBox(unsigned comp = 0) const|
+    
+    迭代器的 public 成员函数，返回当前迭代器指向的块状数据的第 comp 个分量所在的 Box，
+    该 Box 和数据的 centering 一致，且不包含 Ghost 区域。
+
+    \item \lstinline|Box<Dim> getGhostedBox(unsigned comp = 0) const|
+    
+    迭代器的 public 成员函数，同上，但包含 Ghost 区域。
+  \end{enumerate} 
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|Iterator begin()|
+
+    public 成员函数：返回指向当前进程负责的第一个块状数据的迭代器
+
+    \item \lstinline|ConstIterator const_begin() const|
+
+    public 成员函数：返回指向当前进程负责的第一个块状数据的 const 限定版本迭代器
+    \item \lstinline|const DisjointBoxLayout<Dim>& getMesh() const|
+
+    public 成员函数：返回数据所在的网格。
+
+    \item \lstinline|unsigned size() const|
+
+    public 成员函数：返回该 LevelData 中存了几个 Box 的数据。
+
+    \item \lstinline|unsigned getnComps() const|
+
+    public 成员函数：返回该 LevelData 具有几个分量。
+
+    \item \lstinline|int getCentering(unsigned comp = 0) const|
+
+    public 成员函数：返回第 \lstinline|comp| 个分量的 centering 类型。
+
+    \item \lstinline|std::array<Tensor<T,Dim>,nComps>& getBoxData() (unsigned box_id)|
+
+    public 成员函数：返回编号为 \lstinline|box_id| 的 Box 对应的数据（另有 const 版本）。
+
+    \item \lstinline|void exchangeAll()|
+
+    public 成员函数：和其它进程中的同一个 LevelData 做数据交换，获取数据并填充在内部 Ghost 中.
+  \end{enumerate} 
+\end{itemize}
+
+\subsection{class AMRMeshHierarchy}
+
+\begin{itemize}
+  \item 功能：AMR 网格管理器，管理所有 AMR 网格层的信息。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|std::vector<ProblemDomain<Dim>> &domains_|
+
+    每一层网格对应的 ProblemDomain
+    \item \lstinline|std::vector<DisjointBoxLayout<Dim>> &meshes_|
+
+    每一层 AMR 网格
+    \item \lstinline|std::vector<LevelGhostBoxes<Dim>> &ghostBoxes_|
+
+    每一层 AMR 网格中的 ghost box 信息
+    \item \lstinline|std::vector<unsigned> refRatios_|
+
+    每一层网格的加密率
+
+    \item \lstinline|std::vector<std::vector<unsigned>> parents_|
+
+    \lstinline|parents_[i][j]| 表示第 $i$ 层网格的第 $j$ 个 Box 所覆盖的粗 Box 编号，我们称之为 Parent Box.
+
+    \item \lstinline|int nGhost_|
+
+    ghost cell 层数
+  \end{enumerate}
+  
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|AMRMeshHierarchy()|
+    \item \lstinline|AMRMeshHierarchy(const ProblemDomain<Dom> &baseDomain,|
+
+          \lstinline|                    const DisjointBoxLayout<Dim> &baseMesh)|
+
+          构造一个仅包含基层网格的 AMR 网格管理器
+    \item \lstinline|AMRMeshHierarchy(const std::vector<ProblemDomain<Dim>> &domains,|
+
+          \lstinline|                    const std::vector<DisjointBoxLayout<Dim>> &meshes,|
+
+          \lstinline|                    const std::vector<unsigned>& refRatios)|
+
+          构造一个由用户指定所有网格层的 AMR 网格管理器
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|unsigned size() const|
+
+    public 成员函数，返回 AMR 网格的总层数。
+    \item \lstinline|const DisjointBoxLayout<Dim>& getMesh(unsigned level) const|
+
+    public 成员函数，返回第 level 层网格。
+    \item \lstinline|const ProblemDomain<Dim>& getDomain(unsigned level) const|
+
+    public 成员函数，返回第 level 层网格的 ProblemDomain。
+
+    \item \lstinline|cosnt LevelGhostBoxes<Dim>& getLevelGhostBoxes(unsigned level) const|
+
+    public 成员函数，返回第 level 层网格的界面信息。
+
+    \item \lstinline|unsigned getRefRatioToNextLevel(unsigned level) const|
+
+    public 成员函数，返回第 level 层网格加密到第 level+1 层网格的加密率。
+
+    \item \lstinline|unsigned getParent(unsigned level, unsigned box_id) const|
+
+    public 成员函数，返回第 level 层网格第 box\_id 个 box 的 parent box 编号。
+
+    \item \lstinline|void resetLevel(unsigned level, const DisjointBoxLayout<Dim>& newMesh)|
+
+    public 成员函数，重新设置第 level 层网格，重新生成所需的界面信息、
+    Father Box 信息，并做合法性检验。
+
+    \item \lstinline|void push_back(const DisjointBoxLayout<Dim>& newFineMesh, int refRatio = 2)|
+
+    public 成员函数，添加一层细网格，并生成所需信息，做合法性检验。
+  \end{enumerate}
+
+  \item 工厂模式：
+  \begin{enumerate}
+    \item \lstinline|LevelData<T,Dim> createLevelData(|
+    
+    \lstinline|    unsigned level, |
+    
+    \lstinline|    int centering [或 const std::vector<int> &centering], |
+    
+    \lstinline|    int nComps = 1)|
+
+    模板：\lstinline|template<typename T>|
+
+    创建一个第 $level$ 层网格上的 \lstinline|LevelData| 对象
+
+    \item \lstinline|std::vector<LevelData<T,Dim>> createAMRData(|
+    
+    \lstinline|    int centering [或 const std::vector<int> &centering], |
+    
+    \lstinline|    int nComps = 1)|
+
+    模板：\lstinline|template<typename T>|
+
+    创建一个整个 AMR 上的数据
+
+    \item \lstinline|std::vector<LevelData<T,Dim>> createAMRDataFaceVector()|
+
+    模板：\lstinline|template<typename T>|
+
+    创建一个整个 AMR 上的 Face-Center 向量，包含 Dim 个分量，第 $i$ 个分量为 Face$i$-Center
+
+    \item \lstinline|LevelOp<Dim> createLevelOp(unsigned level)|
+
+    创建一个第 $level$ 层网格上的 \lstinline|LevelOp| 对象
+
+    \item \lstinline|FuncFiller<Dim> createFuncFiller(unsigned level)|
+
+    创建一个第 $level$ 层网格上的 \lstinline|FuncFiller| 对象
+
+    \item \lstinline|GhostFiller<Dim> createGhostFiller(unsigned level)|
+
+    创建一个第 $level$ 层网格上的 \lstinline|GhostFiller| 对象
+  \end{enumerate}
+\end{itemize}
+
+\section{有限体积离散}
+
+\subsection{class GhostFiller}
+
+\begin{itemize}
+  \item 功能：根据表达式填充某一层网格 \textbf{物理边界} 处的 ghost cell 数据。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const ProblemDomain<Dim> domain_|
+    \item \lstinline|const DisjointBoxLayout<Dim> mesh_|
+    \item \lstinline|const LevelGhostBoxes<Dim> ghostBoxes_|
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|GhostFiller(const ProblemDomain<Dim>& domain|
+    
+          \lstinline|              const DisjointBoxLayout<Dim>& mesh,|
+    
+          \lstinline|              const LevelGhostBoxes<Dim>& ghostBoxes)|
+
+    public 构造函数，根据 AMR 某一层的定义域和计算网格构造一个 \lstinline|GhostFiller| 对象。
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|void fillGhosts(LevelData<Real, Dim>& aData, Vector<Array<char,Dim*2>> bcType, unsigned comp = 0) const|
+
+    public 成员函数，以齐次边界条件填充 \lstinline|aData| 第 comp 个分量的所有的 ghost cell，其中
+    \lstinline|bcType| 用于描述每个 domain 四条边上的边界条件类型 (D=Dirichlet, N=Neumann, I=Intergrid).
+    \item \lstinline|void fillGhosts(LevelData<Real, Dim>&aData, const Vector<Array<Tensor<Real,Dim-1>, Dim*2>>& cDatas, std::vector<std::array<char,Dim*2>> bcType, unsigned comp = 0)|
+
+    public 成员函数，以 \lstinline|cData| 为边界条件填充 \lstinline|aData| 第 comp 个分量的所有的 ghost cell. 
+    \lstinline|cData| 的第一个下标表示 Domain 编号, 第二个下标表示边界编号(左右下上).
+    % \item \lstinline|void fillGhosts(LevelData<Tensor<Real, Dim>,Dim>& aData, const LevelData<Tensor<Real, Dim>, Dim>* cData) const|
+
+    \item \lstinline|void fillCorners(LevelData<Real, Dim>& aData) const|
+
+    public 成员函数，用外插法填充角上的 ghost
+
+    \item \lstinline|void fillGhostsCFHomo(LevelData<Real, Dim>& aData, unsigned comp = 0, bool useZeroGhost = false) const|
+
+    public 成员函数，齐次粗细插值，填充粗细边界上细网格的 ghost，其中假设粗网格上的值都为 $0$，若设 \lstinline|useZeroGhost=true|，则直接让这些 ghost 等于 $0$.
+
+    % public 成员函数，用 cData 填充所有面的 ghost cell。cData 数组应该包含两个元素，
+    % 表示不同 centering 的物理界面的数据。
+    % \item \lstinline|void fillGhosts(LevelData<Tensor<Real, Dim>,Dim> &aData) const|
+    
+    % public 成员函数，以齐次边界条件填充所有面的 ghost cell。
+    % \item \lstinline|void doFillGhosts(DataIterator<Tensor<Real, Dim>, Dim> ditr, int D, int side, char type, const T &cData) const;|
+
+    % protected 成员函数，实际进行填充。
+  \end{enumerate}
+\end{itemize}
+
+% \subsection{class AMRGhostFiller}
+
+% \begin{itemize}
+%   \item 功能：根据表达式填充整个 AMR 网格 \textbf{物理边界} 处的 ghost cell 数据。
+%   \item 模板：\lstinline|template<int Dim>|
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|std::vector<GhostFiller> lgf_|
+
+%     private 成员变量，每一层的 GhostFiller。
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|AMRGhostFiller(const std::vector<SplitMultiBoxRectDomain<Dim>> & rds)|
+
+%     public 构造函数，根据 AMR 每一层的计算区域构造一个 \lstinline|AMRGhostFiller| 对象。
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|void fillGhosts(AMRData<Real, Dim>& aData, int D, int side, char type, int) const|
+
+%     public 成员函数，以齐次边界条件填充\lstinline|aData|的一个面的 ghost cell。
+%     \item \lstinline|void fillGhosts(AMRData<Real, Dim>, Dim>&aData, int D, int side, char type, const Vector<Vector<Tensor<Real, Dim-1>>>& cData)|
+
+%     public 成员函数，以\lstinline|cData|为边界条件填充\lstinline|aData|的一个面的 ghost cell，其中\lstinline|cData|里的每个 Tensor 对应\lstinline|aData|中每一层、每个Tensor的边界。
+    
+%     \item \lstinline|void fillGhosts(AMRData<Real,Dim>& ld, const char* types, const Vector<Vector<Tensor<Real,Dim-1>>>* cData) const|
+
+%     public 成员函数，用 cData 填充所有面的 ghost cell。
+%     \item \lstinline|void fillGhosts(AMRData<Real, Dim> &ld, const char *types,int) const|
+
+%     public 成员函数，以齐次边界条件填充所有面的 ghost cell。
+%   \end{enumerate}
+% \end{itemize}
+
+\subsection{class FuncFiller}
+
+\begin{itemize}
+  \item 功能：根据表达式填充规则区域 AMR 网格某一层的数据, 或填充物理边界条件。
+  \item 模板：\lstinline|template<int Dim>|。
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const ProblemDomain<Dim> domain_|
+    \item \lstinline|const DisjointBoxLayout<Dim> mesh_|
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|GhostFiller(const ProblemDomain<Dim>& domain|
+    
+          \lstinline|              const DisjointBoxLayout<Dim>& mesh)|
+
+    public 构造函数，根据 AMR 某一层的定义域和计算网格构造一个 \lstinline|FuncFiller| 对象。
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|void fillAvr(LevelData<Real, Dim> &aData, const TFunc &expr, bool fillGhosts = true, unsigned comp = 0) const|
+
+    模板：\lstinline|template<typename TFunc>|
+
+    public 成员函数，根据表达式填充 \lstinline|aData| 的第 comp 个分量。
+    % \item \lstinline|void fillBdryAvr(LevelData<Tensor<Real, Dim>> &cData, int side, const TFunc &expr, bool fillGhosts = true) const|
+
+    % 模板：\lstinline|template<typename TFunc>|
+
+    % public 成员函数，根据表达式填充 \lstinline|cData| 的一个边界。
+
+    \item \lstinline|void fillBdryAvr(Vector<Array<Tensor<Real,Dim-1>, Dim*2>>& cDatas, const TFunc &expr, int domainBoxID, int D, int centering) const|
+    
+    模板：\lstinline|template<typename TFunc>|
+
+    public 成员函数，根据表达式填充 \lstinline|cData| 在第 domainBoxID 个 domain 的第 D 个面上的边界条件，该边界条件类型具有给定的 centering。\lstinline|cData| 的第一个下标表示 Domain 编号, 第二个下标表示边界编号(左右下上).
+
+    \item \lstinline|void fillBdryAvr(Vector<Array<Tensor<Real,Dim-1>, Dim*2>>& cDatas, const TFunc &expr, int dataCentering) const|
+    
+    模板：\lstinline|template<typename TFunc>|
+
+    public 成员函数，根据同一个表达式填充 \lstinline|cData| 的所有信息，\lstinline|dataCentering| 是指对应的 \lstinline|LevelData| 的 centering 类型，其内部会自动匹配边界条件的 centering
+
+    % \item \lstinline|void fillNormalGrad(LevelData<Tensor<Real, Dim>> &cData, int side, const TFunc &expr, bool fillGhosts = true) const|
+
+    % 模板：\lstinline|template<typename TFunc>|
+
+    % public 成员函数，根据表达式填充 \lstinline|cData| 的一个Neumann边界。
+
+    % \item \lstinline|void fillNormalGrad(LevelData<Tensor<Real, Dim>> *cData, const TFunc &expr, bool fillGhosts = true) const|
+
+    % 模板：\lstinline|template<typename TFunc>|
+
+    % public 成员函数，根据表达式填充 \lstinline|cData| 的所有Neumann边界。
+  \end{enumerate}
+\end{itemize}
+
+\subsection{class LevelOp}
+
+\begin{itemize}
+  \item 功能：有限体积法的标准离散格式。
+  \item 模板：\lstinline|template<int Dim>|。
+  \item 别名：
+  \begin{enumerate}
+      \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const ProblemDomain<Dim> domain_|
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|LevelOp(const ProblemDomain<Dim>& domain,|
+    
+          \lstinline|         Communicator comm = MPI_COMM_WORLD)|
+
+    public 构造函数，根据 AMR 某一层的定义域构造一个 \lstinline|LevelOp| 对象。
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}  
+    \item \lstinline|void computeLaplacian(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，标准四阶 Laplace 算子
+    \item \lstinline|void computeHelmoltz(const LD &srcData, LD &dstData, Real alpha, Real beta) const|
+
+    public 成员函数，标准四阶 Helmoltz 算子 $\alpha I + \beta \Delta$
+    \item \lstinline|void computeGradient(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，标准四阶梯度算子，其中 srcData 必须是单分量且 Cell-Center，dstData 必须是 Dim 分量且 Cell-Center 或 Face-Center，若为 Face-Center，则第 $i$ 个分量必须是 Face$i$-Center
+    \item \lstinline|void computeDivergence(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，标准四阶散度算子，其中 srcData 必须具有 Dim 个分量且第 $i$ 个分量必须是 Face$i$-Center，而 dstData 必须是单分量且 Cell-Center
+    \item \lstinline|void computeCurl(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，标准四阶散度算子，其中 srcData 必须具有 Dim 个分量且第 $i$ 个分量必须是 Face$i$-Center，二维情形下， dstData 必须是单分量且 Node-Center
+    \item \lstinline|void computeMagnitude(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，计算向量的大小，其中 srcData 必须具有 Dim 个分量且 Cell-Center，而 dstData 必须是单分量且 Cell-Center
+    \item \lstinline|void computeD2(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，标准四阶 $\frac{\partial^2}{\partial x_d^2}$ 算子，srcData 必须是单分量，dstData 必须是 Dim 分量且与 srcData 的 centering 一致，它的第 $d$ 个分量保存 $\frac{\partial^2}{\partial x_d^2}$ 的结果
+    \item \lstinline|void filterFace2Cell(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，将 Face-Center 的数据保四阶精度地转换为 Cell-Center 的数据。其中 srcData 是 Face-Center 的，
+    dstData 必须和 srcData 具有一样的分量个数且都是 Cell-Center 的
+    \item \lstinline|void filterCell2Face(const LD &srcData, LD &dstData) const|
+
+    public 成员函数，将 Cell-Center 的数据保四阶精度地转换为 Face-Center 的数据。其中 srcData 是单分量且 Cell-Center 的，dstData 必须为 Dim 分量且第 $i$ 个分量必须是 Face$i$-Center
+    \item \lstinline|void relaxJacobi(const LD &src, const LD &res, LD &dst, Real alpha = 0, Real beta = 1, Real jW = 0.5) const|
+
+    public 成员函数，针对 Helmoltz 方程 $\alpha \phi + \beta \Delta \phi = r$ 的标准四阶加权 Jacobi 迭代，权重为 jW
+    \item \lstinline|std::vector<Real> computeNorm(const LD &aData, int q) const|
+
+    public 成员函数，计算 LevelData 的 $L_q$ 误差范数，q只能设为 $0,1,2$，每个分量分别计算，返回值的 size 是分量个数
+  \end{enumerate}
+\end{itemize}
+
+\subsection{class AMRIntergridOp}
+
+\begin{itemize}
+  \item 功能：提供 AMR 数据层的一些操作，包括同层交换、粗细层间限制与插值。
+  \item 模板：\lstinline|template<int Dim>|。
+  \item 别名：
+  \begin{enumerate}
+    \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量：
+  \begin{enumerate}
+    \item \lstinline|const AMRMeshHierarchy<Dim>& amrHier_|
+    \item \lstinline|std::vector<LevelOp<Dim>>& lvOp_|
+ \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|AMRIntergridOp(const AMRMeshHierarchy<Dim>& amrHier)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|void exchangeInLevel(std::vector<LD> &aData) const|
+
+    public 成员函数，对 \lstinline|aData| 进行同层数据交换，并填充至相应的 Ghost 中。
+
+    \item \lstinline|void averageToCoarse(std::vector<LD> &aData) const|
+
+    public 成员函数，将除基网格外的每一层数据取平均传递给对应的粗网格。
+
+    \item \lstinline|void averageToCoarse(const LD& fineData, |
+    
+          \lstinline|                         LD& coarseData, unsigned fineLevel) const|
+    
+    public 成员函数，同上，但只做第 fineLevel 层。
+
+    \item \lstinline|void interpolateToFineGhost(const LD& coarseData,|
+    
+          \lstinline|                                 LD& fineData, unsigned fineLevel) const|
+
+    public 成员函数，同上，通过四阶粗细插值将第 fineLevel - 1 层的数据插值到第 fineLevel 层的 Ghost。
+
+    \item \lstinline|void constantInterpolateIncr(const LD& coarseData, |
+    
+          \lstinline|                                  LD& fineData, unsigned fineLevel) const|
+
+    public 成员函数，将粗网格的非 Ghost 数据分片常数地插值到细网格，并加给 \lstinline|fineData|
+        \item \lstinline|void autoInterpolateIncr(const LD& coarseData, |
+    
+          \lstinline|                                  LD& fineData, unsigned fineLevel, int order) const|
+
+    public 成员函数，将粗网格的非 Ghost 数据分片高阶地插值到细网格，并加给 \lstinline|fineData|，其中 order 只能设为 $1,2,4$，内部采用自动对称化插值格式
+    \item \lstinline|Vector<Real> computeNorm(const Vector<LD> &aDatas, int q) const|
+
+    public 成员函数，计算整个 AMR 数据的 $L_q$ 误差范数，q只能设为 $0,1,2$，每个分量分别计算，返回值的 size 是分量个数
+  \end{enumerate}
+\end{itemize}
+
+
+
+% \subsection{class AMRFuncFiller}
+
+% \begin{itemize}
+%   \item 功能：根据表达式填充规则区域 AMR 网格数据。
+%   \item 模板：\lstinline|template<int Dim>|。
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|std::vector<FuncFiller> funcfillers_|
+
+%     private 成员变量，每一层的 FuncFiller
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|AMRFuncFiller(const std::vector<SplitMultiRectDomain<Dim>>& rds)|
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|void fillAvr(AMRData<Real, Dim> &aData, int centering, const TFunc &expr, bool fillGhosts = true) const|
+
+%     模板：\lstinline|template<typename TFunc>|
+
+%     public 成员函数，根据表达式填充 \lstinline|aData|。
+%     \item \lstinline|void fillBdryAvr(Vector<Vector<Tensor<Real, Dim - 1>>> &aData, int centering, int D, int side, const TFunc &expr, bool fillGhosts = true) const|
+
+%     模板：\lstinline|template<typename TFunc>|
+
+%     public 成员函数，根据表达式填充 \lstinline|aData| 的一个边界，每一层都要填，\lstinline|aData| 的第一个下标
+%     表示层号，第二个下标表示 Box 编号，下同。
+
+%     \item \lstinline|void fillBdryAvr(Vector<Vector<Tensor<Real, Dim - 1>>> *aData, int centering, const TFunc &expr, bool fillGhosts = true) const|
+
+%     模板：\lstinline|template<typename TFunc>|
+
+%     public 成员函数，根据表达式填充 \lstinline|aData| 的所有边界，每一层都要填，\lstinline|aData[0~2^Dim-1]|表示所有规则边界的边界值。
+
+%     \item \lstinline|void fillNormalGrad(Vector<Vector<Tensor<Real, Dim - 1>>> &aData, int centering, int D, int side, const TFunc &expr, bool fillGhosts = true) const|
+
+%     模板：\lstinline|template<typename TFunc>|
+
+%     public 成员函数，根据表达式填充 \lstinline|aData| 的一个Neumann边界，每一层都要填，
+
+%     \item \lstinline|void fillNormalGrad(Vector<Vector<Tensor<Real, Dim - 1>>> *aData, int centering, const TFunc &expr, bool fillGhosts = true) const|
+
+%     模板：\lstinline|template<typename TFunc>|
+
+%     public 成员函数，根据表达式填充 \lstinline|aData| 的所有Neumann边界，每一层都要填，\lstinline|aData[0~2^Dim-1]|表示所有规则边界的边界值。
+%   \end{enumerate}
+% \end{itemize}
+
+
+% \subsection{class EmFuncFiller: public FuncFiller<Dim>}
+
+% \begin{itemize}
+%   \item 功能：根据表达式填充不规则网格数据。
+%   \item 模板：\lstinline|template<int Dim>|
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|const SplitMultiBoxEmbeddedGrid<Dim>& emGrid_|
+
+%     private 成员变量，表示不规则网格定义域。
+%   \end{enumerate}
+
+  
+  % \item 构造函数：
+  % \begin{enumerate}
+  %   \item \lstinline|EmFuncFiller(const MultiBoxEmbeddedGrid<Dim>& emGrid)|
+  % \end{enumerate}
+  % \item 成员函数：
+  % \begin{enumerate}
+  %   \item \lstinline|void fillAvr(LevelData<Tensor<Real, Dim>,Dim> &aData, int centering, const TFunc &f, bool fillGhosts = true) const|
+
+  %   模板：\lstinline|template<typename TFunc>|
+
+  %   public 成员函数，根据表达式填充 \lstinline|aData|。
+  %   \item \lstinline|void fillBdryAvr(std::vector<Tensor<Real, Dim-1>> &aData, const char *, const TFunc &f) const|
+
+  %   模板：\lstinline|template<typename TFunc>|
+
+  %   public 成员函数，根据表达式填充 \lstinline|aData| 的不规则边界值。
+
+  %   \item \lstinline|void fillNormalGrad(std::vector<Tensor<Real, Dim-1>> &aData, const char *, const TFunc &f) const|
+
+  %   模板：\lstinline|template<typename TFunc>|
+
+  %   public 成员函数，根据表达式填充 \lstinline|aData| 的不规则Neumann边界值。
+  % \end{enumerate}
+% \end{itemize}
+
+% \begin{note}
+%   不规则区域暂时不管
+% \end{note}
+
+% \subsection{class OutrangeData}
+
+% \begin{itemize}
+%   \item 功能：用于处理 PLG 离散模板中超出2层Ghost Cell、Slave 超出2层Ghost Cell的情况。只能在同层数据中使用。
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|Map<int, Set<iVec>> idx2Send_|
+
+%     private 成员变量，表示 (neighbor proc id -> cell index to send)。
+%     \item \lstinline|Map<int, Set<iVec>> idx2Recv_|
+
+%     private 成员变量，表示 (neighbor proc id -> cell index to receive)。
+%     \item \lstinline|Map<int, Vector<char>> sendBuf_|
+
+%     private 成员变量，表示 (neighbor proc id -> send buffer)，其中 send buffer 是将数据打包后形成的char缓冲区。
+%     \item \lstinline|Map<int, Vector<char>> recvBuf_|
+
+%     private 成员变量，表示 (neighbor proc id -> recv buffer)，其中 recv buffer 是将数据打包后形成的char缓冲区。
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|OutrangeData(Map<int, Set<iVec>> map, bool init_by_recv = true)|
+
+%     构造函数，\lstinline|init_by_recv = true|表示已知\lstinline|idx2Recv_|，并用\lstinline|idx2Recv|初始化\lstinline|idx2Send_|。若 \lstinline|init_by_recv = false|则为使用\lstinline|idx2Recv_|初始化\lstinline|idx2Send_|
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|void linearIn(TF handler, const Map<int, T>& in)|
+
+%     模板：\lstinline|template<class TF, class T>|
+
+%     public 成员函数，通过\lstinline|handler|处理将\lstinline|in|打包到\lstinline|sendBuf_|中。
+%     \item \lstinline|void linearOut(TF handler, Map<int, T>& out)|
+
+%     模板：\lstinline|template<class TF, class T>|
+    
+%     public 成员函数，用于将数据打包到\lstinline|out|中。
+%     \item \lstinline|void syncOutrangeInfo(bool init_by_recv = true)|
+
+%     private 成员函数，若 \lstinline|init_by_recv = true| 则根据 \lstinline|idx2Recv| 设置 \lstinline|idx2Send|，若 \lstinline|init_by_recv = false|则反之。
+%     \item \lstinline|void exchangeData()|
+
+%     public 成员函数，发送\lstinline|sendBuf_|并接收\lstinline|recvBuf_|
+%   \end{enumerate}
+% \end{itemize}
+
+
+\section{多重网格求解器}
+
+\subsection{class LinearSolver}
+
+\begin{itemize}
+  \item 功能：线性方程的求解器基类，其派生类可以是直接法也可以是迭代法
+  \item 模板：\lstinline|template<int T>|
+  % \item 成员变量：
+  % \begin{enumerate}
+  %   \item \lstinline|const SplitMultiBoxRectDomain<Dim> grid_|
+
+  %   protected 成员变量，表示目标规则定义域。
+  % \end{enumerate}
+  % \item 构造函数：
+  % \begin{enumerate}
+  %   \item \lstinline|LevelOp(const SplitMultiBoxRectDomain<Dim>& grid)|
+  % \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|virtual void apply(T& dst, const T& src) const = 0|
+
+    public 成员函数，计算 \lstinline|dst = L(src)|.
+  
+    \item \lstinline|virtual void computeResidual(T& dst, const T& src, const T &rhs) const|
+
+    public 成员函数，计算 \lstinline|dst = rhs - L(src)|.
+
+    \item \lstinline|virtual Vector<double> computeNorm(const LD& aData, int q) const|
+
+    public 成员函数，计算每个分量的 $L^q$ 范数。
+
+    \item \lstinline|virtual void relax(const T& phi, const T &rhs, T& smoothed) = 0|
+    
+    public 成员函数，对方程 \lstinline|L(phi) = rhs| 进行一次松弛（例如 Jacobi 迭代）。
+
+    \item \lstinline|virtual void solve(const T& phi, const T &rhs) = 0|
+    
+    public 成员函数，对方程 \lstinline|L(phi) = rhs| 进行求解（可以是多次迭代求解，也可以是直接求解）。
+  \end{enumerate}
+\end{itemize}
+
+% \subsection{class MGLevelOp : public LevelOp<T>}
+
+% \begin{itemize}
+%   \item 功能：多重网格某层的算子基类。
+%   \item 模板：\lstinline|template<int T>|
+%   % \item 成员变量：
+%   % \begin{enumerate}
+%   %   \item \lstinline|const SplitMultiBoxRectDomain<Dim> grid_|
+
+%   %   protected 成员变量，表示目标规则定义域。
+%   % \end{enumerate}
+%   % \item 构造函数：
+%   % \begin{enumerate}
+%   %   \item \lstinline|LevelOp(const SplitMultiBoxRectDomain<Dim>& grid)|
+%   % \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|virtual void applySmooth(const T& phi, const T &rhs, T& smoothed) const = 0|
+%     public 成员函数，虚函数，对方程 \lstinline|L(phi) = rhs| 进行一次某种松弛（例如加权 Jacobi）。
+%     \begin{note}
+%         作泛化用
+%     \end{note}
+
+%     \item \lstinline|virtual void bottomSolve(T &phi, const T& rhs) = 0|
+
+%     public 成员函数，虚函数，求解方程 \lstinline|L(phi) = rhs|。
+%     \begin{note}
+%         作泛化用
+%     \end{note}
+%   \end{enumerate}
+% \end{itemize}
+
+% \subsection{class SpatialOperator}
+
+% \begin{itemize}
+%   \item 功能：作为不规则空间离散算子的基类（省略了部分实现时要用到的辅助函数）。
+%   \item 模板：\lstinline|template<int Dim>|
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|const SplitMultiBoxEmbeddedGrid<Dim>& emGrid_|
+
+%     protected 成员变量，表示目标不规则网格。
+%   \end{enumerate}
+  % \item 构造函数：
+  % \begin{enumerate}
+  %   \item \lstinline|SpatialOperator(const MultiBoxEmbeddedGrid<Dim>& em_grid)|
+  % \end{enumerate}
+  % \item 成员函数：
+  % \begin{enumerate}
+  %   \item \lstinline|void buildSampleMatrix(int dataIdx, const Stencil& stencil, char bdryType, const rVec& refLoc, Tensor<Real,2>& mout)|
+
+  %   public 成员函数，构建最小二乘法需要的增广采样矩阵。
+  % \end{enumerate}
+% \end{itemize}
+
+% \begin{note}
+%     不规则区域暂时不管
+% \end{note}
+
+\subsection{class HelmoltzJacobiSmoother: public LinearSolver< LevelData<Real, Dim> >}
+
+\begin{itemize}
+  \item 功能：作用于 Helmoltz 方程 \lstinline|alpha * I + beta * Lap| 的光滑子，内部采用加权 Jacobi 迭代。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 继承：\lstinline|LinearSolver< LevelData<Real, Dim> >|
+  \item 别名：
+  \begin{enumerate}
+      \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量：
+  \begin{enumerate}
+      \item \lstinline|Real alpha_|
+      \item \lstinline|Real beta_|
+      \item \lstinline|Real jacobiWeight_|
+  \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+      \item \lstinline|HelmoltzJacobiSmoother(Real alpha, Real beta, Real jacobiWeight=0)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|virtual void apply(LD& dst, const LD& src) const|
+
+    public 成员函数，计算 \lstinline|dst = (alpha * I + beta * Lap) (src)|
+    \item \lstinline|virtual void relax(const LD& phi, const LD& rhs, LD& smoothed)|
+
+    public 成员函数，对 Helmoltz 方程进行一次加权 Jacobi 迭代。
+
+    \item \lstinline|virtual void solve(const LD& phi, const LD& rhs)|
+
+    public 成员函数，也是对 Helmoltz 方程进行一次加权 Jacobi 迭代。
+  \end{enumerate}
+\end{itemize}
+
+% \subsection{class AMRSpatialOperator（初步设计）}
+
+% \begin{itemize}
+%   \item 功能：表示不规则区域的 AMR 网格上直接离散的任意算子。
+%   \item 模板：\lstinline|template<typename SpOp, int Dim>|
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|std::vector<SpOp> levelSpOp|
+
+%     private 成员变量，存放每层网格上的算子。
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|AMRSpatialOperator(const std::vector<SplitMultiBoxEmbeddedGrid<Dim>>& em_grid, int centering, BoundaryType = Dirichlet)|
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|void apply(const AMRData<Real,Dim>& u, const T1 & irBcData, const T2 &rhs, Real beta, AMRData<Real,Dim>& dest) const|
+
+%     模板：\lstinline|Template<typename T1, typename T2>|
+
+%     public 成员函数，计算 \lstinline|beta*SpOp(u) + rhs|。
+%   \end{enumerate}
+% \end{itemize}
+
+% \subsection{class BlockRelaxation: public SpatialOperator<Dim>（初步设计）}
+
+% \begin{itemize}
+%   \item 功能：对应多重网格中的块松弛算法，在实现时需要将不规则区域数据传输到同一个进程中（默认0号）。
+%   \item 模板：\lstinline|template<int Dim, class _SparseSolver>|
+%   \item 别名：
+%   \begin{enumerate}
+%     \item \lstinline|using iVec = Vec<int, Dim>|
+%     \item  \lstinline|using RS = RowSparse<iVec,iVec>|
+%   \end{enumerate}
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|const Vector<RS>& spLap_|
+
+%     private 成员变量，对应不规则边界拉普拉斯算子的线性变换。
+%     \item \lstinline|Vector<RS> offDiagBlock_|
+
+%     private 成员变量，对应与不规则边界拉普拉斯算子分块矩阵中同行的分块矩阵。
+%     \item \lstinline|int blockSize_|
+
+%     private 成员变量，表示待分解矩阵的大小。
+%     \item \lstinline|RowSparse<int, int> diagBlock_|
+
+%     private 成员变量，表示对角分块矩阵。
+%     \item \lstinline|_SparseSolver solver_|
+
+%     private 成员变量，表示稀疏求解器。
+%     \item \lstinline|MPI_Comm comm_|
+
+%     private 成员变量，表示MPI通讯器
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|BlockRelaxation(const SplitMultiBoxEmbeddedGrid<Dim>& emGrid, const RS& aLapSpOp, Real alpha, Real beta, const _SparseSolver &aSolver, MPI_Comm aComm = MPI_COMM_WORLD)|
+
+%     public 构造函数。
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|void apply(LevelData<Real,2>& phi, const T& irBcData, const LevelData<Real,2>& rhs, int proc_id = 0) const|
+
+%     public 成员函数，对目标函数作用块松弛。
+%   \end{enumerate}
+% \end{itemize}
+
+
+% \subsection{class HelmoltzDirectSolver : public LinearSolver< LevelData<Real, Dim> >}
+
+% \begin{itemize}
+%   \item 功能：作用于 Helmoltz 方程的直接法求解器。
+%   \item 模板：\lstinline|template<int Dim, class _Solver>|
+%   \item 继承：\lstinline|LinearSolver< LevelData<Real, Dim> >|
+% \item 别名：
+%   \begin{enumerate}
+%       \item \lstinline|using LD = LevelData<Real, Dim>|
+%   \end{enumerate}
+%   \item 成员变量：
+%   \begin{enumerate}
+%     \item \lstinline|const DisjointBoxLayout<Dim>& mesh_|
+%     \item \lstinline|const LevelGhostBoxes<Dim>& ghostBoxes_|
+%     \item \lstinline|const ProblemDomain<Dim>& domain_|
+%     \item \lstinline|int centering_|
+%     \item \lstinline|Real alpha_, beta_|
+%     \item \lstinline|bool pureNeumann_|
+%     \item \lstinline|int numUnKnown_|
+%     \item \lstinline|int numActualUnkowns_|
+%     \item \lstinline|LevelData<int,Dim> unknownMap_|
+%     \item \lstinline|_Solver solver_|
+%     \item \lstinline|Map<iVec, int> irVec2Idx_|
+
+%     private 成员变量，用于将RowSparse中行标转换为Solver矩阵中的下标。
+%     \item \lstinline|MPI_Comm comm_|
+%   \end{enumerate}
+%   \item 构造函数：
+%   \begin{enumerate}
+%     \item \lstinline|HelmoltzDirectSolver(const DisjointBoxLayout<Dim>& mesh, |
+    
+%           \lstinline|               const LevelGhostBoxes<Dim>& ghostBoxes,|
+
+%           \lstinline|               const ProblemDomain<Dim>& domain,|
+          
+%           \lstinline|               int centering, |
+          
+%           \lstinline|               Real alpha, |
+          
+%           \lstinline|               Real beta, |
+          
+%           \lstinline|               const _Solver &aSolver, |
+          
+%           \lstinline|               MPI_Comm aComm = MPI_COMM_WORLD)|
+
+%     构造一个求解方程 \lstinline|(alpha * I + beta * Lap) phi = rhs| 的直接法求解器
+%   \end{enumerate}
+%   \item 成员函数：
+%   \begin{enumerate}
+%     \item \lstinline|virtual void solve(LD &phi, const LD& rhs)|
+
+%     直接法求解 Helmoltz 方程
+%   \end{enumerate}
+
+%   \item 禁用函数：
+%     \begin{enumerate}
+%         \item \lstinline|virtual void apply(LD& dst, const LD& src) const|
+%         \item \lstinline|virtual void relax(const LD& phi, const LD& rhs, LD& smoothed)|
+%     \end{enumerate}
+% \end{itemize}
+
+\subsection{class MGIntergrid}
+
+\begin{itemize}
+  \item 功能：相邻的多重网格隐含层之间用于数据交互的类。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 别名：
+  \begin{enumerate}
+      \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量：暂无，以后可能会有两个 EmGrid.
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|void applyRestrict(const LD& fineData, LD& coarseData) const|
+
+    将细网格非 Ghost 的值取平均传递给粗网格
+
+    \item \lstinline|void applyInterpolate(const LD& coarseData, LD& fineData) const|
+
+    将粗网格非 Ghost 的值分片常数地插值给细网格。
+
+    % \item \lstinline|void linearInterpolate(const LD& coarseData, LD& fineData) const|
+
+    % 将粗网格非 Ghost 的值线性插值给细网格。
+    % \begin{note}
+    %     线性插值可以暂时不实现
+    % \end{note}
+    \end{enumerate}
+
+\end{itemize}
+
+\subsection{class AMRMGLevelOp : public LinearSolver< LevelData<Real, Dim> >}
+
+\begin{itemize}
+  \item 功能：AMR多重网格算法中某一层的算子，主要功能是生成 AMR 层间的多重网格隐含层，
+             并将隐含层中的小 V-Cycle 封装成一个 relax，
+             与 ChomboDesign 中 Figure 4.1 所述算法对应。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 别名：
+  \begin{enumerate}
+      \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量： 略
+  % \begin{enumerate}
+  %     \item \lstinline|bool defined_|
+  %     \item \lstinline|unsigned nLevel_|
+  %     \item \lstinline|std::vector<DisjointBoxLayout<Dim>> meshs_|
+
+  %     这里的网格数组不是用户的 AMR 网格，而是某一层 AMR 网格和它底下的
+  %     多重网格隐含层（MG implicit levels）。
+      
+  %     例如对于中间层的 AMR 网格，有 $\log(r)$ 个隐含层（$r$ 是这层 AMR 网格的加密率）
+
+  %     对于底层 AMR 网格，有 $k$ 个隐含层（$k$ 是将底层网格以 $2$ 的加密率进行加粗，直到无法继续加粗为止，所生成的网格总层数）
+  %     \item \lstinline|std::vector< std::unique_ptr< LinearSolver<LD> > > smoothers_|
+
+  %     对于 Helmoltz 方程而言，这里的 \lstinline|smoothers_| 是 \lstinline|HelmoltzJacobiSmoother|
+  %     \item \lstinline|std::vector< std::unique_ptr< MGIntergrid<Dim> > > mgIntergridOps_|
+  %     \item \lstinline|std::shared_ptr< LinearSolver<LD> > bottomSolver_|
+
+  %     对于 Helmoltz 方程而言，这里的 \lstinline|bottomSolver_| 也是 \lstinline|HelmoltzJacobiSmoother|。
+  %     不过我们也留下一个泛化接口，以便以后加入某种底层求解器。
+  %     \item \lstinline|std::vector<FuncFiller<Dim>> fcFillers_|
+      
+  %     每个多重网格隐含层的函数填充器
+  %     \item \lstinline|std::vector<GhostFiller<Dim>> gstFillers_|
+      
+  %     每个多重网格隐含层的物理 ghost 填充器
+  %     \item \lstinline|int nComps_|
+
+  %     变量的分量个数
+  %     \item \lstinline|std::vector<int> centering|
+
+  %     每个分量的 centering 类型
+  %     \item \lstinline|std::vector<LD> levelRes_|
+
+  %     每一个多重网格隐含层的残差
+  %     \item \lstinline|std::vector<LD> levelCorr_|
+
+  %     每一个多重网格隐含层的校正量
+  %     \item \lstinline|std::vector<LD> levelAux_|
+
+  %     每一个多重网格隐含层的辅助变量，用于数据倒腾来倒腾去。
+  %     提前创建好所有必要的 LevelData，可以避免在计算时反复开辟或释放内存导致的巨大耗时。
+  %     \item \lstinline|int preSmooth_|
+  %     \item \lstinline|int postSmooth_|
+  %     \item \lstinline|int bottomSmooth_|
+      
+  %     这个参数表示最底层的迭代次数，当底层求解器为空时，建议用几十次底层迭代来替代底层求解。但是对于 AMR 相邻层间的多重网格隐含层，\lstinline|bottomSmooth_| 应当设置为0
+
+  %     \item \lstinline|bool useFMG_|
+
+  %     是否使用 FMG-Cycle
+  %     \item \lstinline|Vector<Array<char, 2 * Dim>> bcType_|
+      
+  %     物理边界的条件类型
+  % \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|AMRMGLevelOp(const ProblemDomain<Dim>& domain_)|
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}    
+    \item \lstinline|void define(const DisjointBoxLayout<Dim>& finestMesh, |
+    
+    \lstinline|              Real alpha, |
+    
+    \lstinline|              Real beta, |
+
+    \lstinline|              int nComps, |
+
+    \lstinline|              const std::vector<int>& centering,|
+
+    
+    \lstinline|              unsigned nLevel, |
+    
+    \lstinline|              LevelOp<LD> *bottomSolver = nullptr)|
+
+    public，最细网格、定义 Helmoltz 方程的系数、多重网格层数、底层求解器。调用 \lstinline|getCoarsened(2)|
+    来生成需要的所有粗网格.
+
+    \item \lstinline|void setBCType(const Vector<Array<char, 2 * Dim>> &bcType)|
+
+    public，设置物理边界条件类型
+    
+    \item \lstinline|void setParam(int preSmooth,int postSmooth,int bottomSmooth)|
+
+    public，设置多重网格算法的参数
+
+    \item \lstinline|void switchFMG(bool useFMG)|
+
+    public, 设置是否使用 FMG-Cycle，方便用户随时切换 V-Cycle 和 FMG-Cycle
+
+    \item \lstinline|void relax(const LD& phi, const LD& rhs, LD& smoothed)|
+
+    public，调用用户指定的 Cycle 进行一次多重网格松弛
+
+    \item \lstinline|void apply(LD& dst, const LD& src) const|
+
+    public，在最细一层作用 Helmoltz 算子
+    \end{enumerate}
+
+\end{itemize}
+
+\subsection{class AMRMultigrid}
+
+\begin{itemize}
+  \item 功能：AMR 多重网格算法。注意，每一个实例必须要明确整个 AMR 网格以及变量的分量个数、centering类型。对于不同的变量（比如速度、压强），不能使用同一个 AMRMultigrid 实例。
+  \item 模板：\lstinline|template<int Dim>|
+  \item 别名：
+  \begin{enumerate}
+      \item \lstinline|using LD = LevelData<Real, Dim>|
+  \end{enumerate}
+  \item 成员变量： 略
+  % \begin{enumerate}
+  %     \item \lstinline|bool defined_|
+  %     \item \lstinline|const AMRMeshHierarchy<Dim>& amrHier_|
+      
+  %     AMR网格管理器
+  %     \item \lstinline|std::unique_ptr<AMRIntergridOp<Dim>> amrIntergridOp_|
+      
+  %     负责粗细网格之间插值的类
+  %     \item \lstinline|std::vector<FuncFiller<Dim>> fcFillers_|
+      
+  %     每层 AMR 网格上的函数填充器
+  %     \item \lstinline|std::vector<GhostFiller<Dim>> gstFillers_|
+      
+  %     每层 AMR 网格上的物理 ghost 填充器
+  %     \item \lstinline|std::vector< std::unique_ptr< AMRMGLevelOp<Dim> > > mgSmoothers_|
+
+  %     它封装了 ChomboDesign Figure 4.1 所示的 mgRelax 算法，
+  %     在 AMRMultigrid 类中无需知道其内部的细节。
+
+  %     \item \lstinline|unsigned nComps_|
+
+  %     分量个数
+  %     \item \lstinline|std::vector<int> centering_|
+
+  %     每个分量的 centering 类型
+  %     \item \lstinline|std::vector<LD> levelRes_|
+
+  %     存储每一层的残差
+  %     \item \lstinline|std::vector<LD> levelCorr_|
+
+  %     存储每一层的校正量
+  %     \item \lstinline|std::vector<LD> levelAux_|
+
+  %     每一层的辅助变量，用于数据倒腾来倒腾去
+  %     \item \lstinline|int maxIter_|
+  %     \item \lstinline|Real relTol_|
+  %     \item \lstinline|Real stallTol_|
+  % \end{enumerate}
+  \item 构造函数：
+  \begin{enumerate}
+    \item \lstinline|AMRMultigrid(const AMRMeshHierarchy<Dim>& amrHier)|
+
+    初始化参数为默认值
+  \end{enumerate}
+  \item 成员函数：
+  \begin{enumerate}
+    \item \lstinline|void define(Real alpha,|
+
+          \lstinline|              Real beta,|
+
+          \lstinline|              unsigned nComps,|
+
+          \lstinline|              const std::vector<int>& centering,|
+
+          \lstinline|              int bottomNumLevel,|
+
+          \lstinline|              int jacobiW,|
+
+          \lstinline|              std::shared_ptr<LinearSolver<LD>> bottomSolver = nullptr)|
+
+    public，定义 AMR 网格、 Helmoltz 方程的系数、分量个数、各分量centering类型、底层多重网格层数、底层求解器，内部要初始化 \lstinline|mgSmoothers_|。
+
+    \item \lstinline|void define(Real alpha,|
+
+          \lstinline|              Real beta,|
+
+          \lstinline|              int centering,|
+
+          \lstinline|              int bottomNumLevel,|
+
+          \lstinline|              int jacobiW,|
+
+          \lstinline|              std::shared_ptr<LinearSolver<LD>> bottomSolver = nullptr)|
+    
+    public，为单分量的变量提供的一个更加方便的 define 接口。
+    
+    \item \lstinline|void setParam(int preSmooth,|
+          
+          \lstinline|                int postSmooth,|
+          
+          \lstinline|                int bottomSmooth,       // 底层迭代次数|
+          
+          \lstinline|                int maxIter,            // 最大迭代次数|
+          
+          \lstinline|                Real relTol,            // 可容忍的最大相对误差|
+          
+          \lstinline|                Real stallTol,          // 可容忍的最小残差下降率|
+          
+          \lstinline|                bool useFMG = false,  // 是否使用 FMG-Cycle|
+          
+          \lstinline|                int FMGInterpOd = 1)    // 在 FMG-Cycle 中使用多少阶插值 [0/1/2/4]|
+
+    public，设置多重网格算法的参数。
+
+    \item \lstinline|void solve(|
+      
+      \lstinline|    Vector<LD> &phi,|
+      
+      \lstinline|    const Vector<LD> &rhs,|
+      
+      \lstinline|    const Vector<Vector<Array<Tensor<Real, Dim - 1>, 2 * Dim>>> &cDatas,|
+      
+      \lstinline|    const Vector<Array<char, 2 * Dim>> &bcType,|
+      
+      \lstinline|    Wrapper_Silo<Dim> *dbgSiloOut = nullptr)|
+
+    public，用多重网格求解方程，右端项为 rhs, 整个 AMR 的边界条件数据为 cDatas（\lstinline|cDatas[i]| 表示第 $i$ 层的边界条件数据，可以由 \lstinline|FuncFiller| 生成），边界条件类型为 bcType，最后一个参数用于输出中间结果，
+    如果传入一个 \lstinline|Wrapper_Silo| 指针，则可以在 Silo 中输出每一步迭代的解与残差。
+  \end{enumerate}
+\end{itemize}
+
+\end{document}
+
+
+
+
+

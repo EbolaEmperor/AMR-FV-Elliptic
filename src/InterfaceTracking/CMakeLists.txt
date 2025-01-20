@@ -1,0 +1,29 @@
+set(InterfaceTracking_Files
+    InterfaceTracking/TimeIntegrator.h
+    InterfaceTracking/RKButcher.h
+    InterfaceTracking/RKButcher.cpp
+    InterfaceTracking/VectorFunction.h
+    InterfaceTracking/ERK.h
+    InterfaceTracking/DIRK.h
+    InterfaceTracking/MARS.h
+    InterfaceTracking/MARS.cpp
+    # InterfaceTracking/MARS2D.h
+    # InterfaceTracking/MARS2D.cpp
+    #InterfaceTracking/MARS2DIMV.h
+    #InterfaceTracking/MARS2DIMV.cpp
+    InterfaceTracking/XorArea.h
+    InterfaceTracking/XorArea.cpp
+    InterfaceTracking/ComputeError.h
+    InterfaceTracking/VelocityField.h
+    InterfaceTracking/TestExample.h
+    InterfaceTracking/PolynomialSurface.h
+    InterfaceTracking/Polygon.h
+    InterfaceTracking/Polygon.cpp
+    InterfaceTracking/VertexAdjustor.h
+    InterfaceTracking/VertexAdjustor.cpp
+    InterfaceTracking/LinearMARS3D.h
+    InterfaceTracking/LinearMARS3D.cpp
+    InterfaceTracking/EdgeSwapper.h
+    InterfaceTracking/EdgeSwapper.cpp
+    PARENT_SCOPE
+)

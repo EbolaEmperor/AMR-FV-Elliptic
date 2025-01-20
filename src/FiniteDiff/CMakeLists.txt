@@ -1,0 +1,21 @@
+set(FiniteDiff_Files
+    FiniteDiff/AMRIntergridOp.cpp
+    FiniteDiff/AMRIntergridOp.h
+    FiniteDiff/FuncFiller.cpp
+    FiniteDiff/FuncFiller.h
+    FiniteDiff/GhostFiller.cpp
+    FiniteDiff/GhostFiller.h
+    FiniteDiff/LevelOp_Curl.cpp
+    FiniteDiff/LevelOp_Divergence.cpp
+    FiniteDiff/LevelOp_Filters.cpp
+    FiniteDiff/LevelOp_Gradient.cpp
+    FiniteDiff/LevelOp_Laplacian.cpp
+    FiniteDiff/LevelOp_Magnitude.cpp
+    FiniteDiff/LevelOp_Norm.cpp
+    FiniteDiff/LevelOp_Smoothers.cpp
+    FiniteDiff/LevelOp_Tag.cpp
+    FiniteDiff/LevelOp.h
+    FiniteDiff/MGIntergrid.cpp
+    FiniteDiff/MGIntergrid.h
+    PARENT_SCOPE
+)

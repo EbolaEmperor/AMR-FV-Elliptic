@@ -1,0 +1,28 @@
+/**
+ * @file configure.h.in
+ * @author YiXiao Qian (yixiaoqian@zju.edu.cn)
+ *
+ * @copyright Copyright (c) 2023 YiXiao Qian
+ *
+ */
+#pragma once
+
+// definition for compile
+#cmakedefine DIM ${DIM}
+
+// definition for root dir
+#cmakedefine ROOT_DIR "${ROOT_DIR}"
+
+// definition for debug
+#cmakedefine DEBUG
+#cmakedefine DEBUG_LEVEL ${DEBUG_LEVEL}
+
+// definition for openmp
+#cmakedefine USE_OPENMP
+
+// definition for time test
+#cmakedefine TEST_TIME
+#cmakedefine SHOW_TIME
+
+// definition for PETSc
+#cmakedefine USE_PETSC

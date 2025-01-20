@@ -1,0 +1,56 @@
+{
+  "description" : "Poisson-rect",
+  "grid" : {
+    "dimension"     : 2,
+    "domain"        : "unit square",
+    "boxSize0"      : [4096, 4096],
+    "numHier"       : 3,
+    "refRatio"      : [2, 2],
+    "refThereshold" : [5e-7, 1e-6],
+    "fillRatio"     : [0.6, 0.6]
+  },
+  "solver" : {
+    "equationType"  : "Poisson",
+    "HelmholtzCoef" : [0.0, -1.0],
+    "centering"     : -1,
+    "phi"      : {
+      "description" : "Gaussian",
+      "numCenter"   : 13,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75], [0.5, 0.5], [0.5, 0], [0, 0.5], [0.5, 1], [1, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]],
+      "lambs"       : [5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3]
+    },
+    "phiGrad"  : {
+      "description" : "Gaussian_Grad",
+      "numCenter"   : 13,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75], [0.5, 0.5], [0.5, 0], [0, 0.5], [0.5, 1], [1, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]],
+      "lambs"       : [5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3]
+    },
+    "phiLap"   : {
+      "description" : "Gaussian_Lap",
+      "numCenter"   : 13,
+      "centers"     : [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75], [0.5, 0.5], [0.5, 0], [0, 0.5], [0.5, 1], [1, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]],
+      "lambs"       : [5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3, 5e3]
+    },
+    "testGradient" : false,
+    "boundaryCondition"   : ["DDNN"],
+    "multigrid" : {
+      "relaxation"     : [6, 6, 10],
+      "JacobiWeight"   : 0.5,
+      "maxIterations"  : 100,
+      "stallThr"       : 1.1,
+      "relRsd"         : 1e-12,
+      "numBottomLevel" : 10,
+      "useFMG"         : true,
+      "FMGInterpOd"    : 4
+    }
+  },
+  "output" : {
+      "enableOutput"   : false,
+      "fileName"       : "PoissonMultiGaussian",
+      "middleOutput"   : false
+  },
+  "perf" : {
+    "timing"     : true,
+    "numThreads" : 2
+  }
+}
