@@ -1,5 +1,7 @@
 # A fourth-order FV solver for elliptic equations with AMR and PC techniques 
 
+My undergraduate graduation project.
+
 ## Dependent
 
 gcc13, g++13, cmake, mpich, hdf5, silo
